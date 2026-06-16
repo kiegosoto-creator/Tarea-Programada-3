@@ -1,2 +1,46 @@
-# Tarea-Programada-3
----Asignación: Tarea Programada 3 ---Estudiantes: Diego Kim, y Gabriel Gomez. ---Fecha limite: 1/Julio/2026.
+     -----SCRUM-----
+Fecha inicial 12/junio/2025
+Grupo de Trabajo: Diego Kim Soto y Gabriel Gomez Fallas.
+SCRUM MASTER: Diego kim Soto.
+
+-Fecha: 12/junio/2025
+-Nombre de la perzona: Diego Kim Soto
+-?Que he hecho?: Cree el repositorio github para el trabajo
+-?Que hare a continuacion?: Trabajare en el codigo, y estudi-
+ are como se hacen algunas de las cosas requeridas.
+-?En que ocupo ayuda?: Por el momento, nada es urgente, aun
+ si hace falta comunicarme con my compannero.
+
+Fecha: 15/junio/2025
+Nombre de la perzona: Diego Kim Soto
+?Que he hecho?: Cree el SCRUM, y anote lo requerido segun l-
+ as intrucciones dadas por el asistente de la profesora.
+?Que hare a continuacion?: Me reunire con my compannero para 
+ dividir el trabajo de maner apropiada, y avanzare el progre-
+ so del proyecto.
+?En que ocupo ayuda?: Necesito, trabajar de manera constante,
+ y comunicarme con mi compannero para poder avanzar bien el trabajo.
+
+\
+#\
+##\
+###\
+####ATENCION...   --->>>NO escribir en estos ultimos 2 bloques, COPIELOS cada vez que quiera ingresar una entrada.
+###/
+##/
+#/
+/
+
+-Fecha:
+-Nombre de la perzona:
+-?Que he hecho?:
+-?Que hare a continuacion?:
+-?En que ocupo ayuda?:
+
+-Fecha:
+-Nombre de la perzona:
+-?Que he hecho?:
+-?Que hare a continuacion?:
+-?En que ocupo ayuda?:
+
+#-Fin
