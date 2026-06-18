@@ -1,0 +1,77 @@
+import re
+import os
+import random
+import tkinter as tk
+from tkinter import messagebox, simpledialog
+from tkinter import ttk
+import math
+"""
+placa: [ 
+marca: "", 
+color: "", 
+tipo: "", 
+ubicacion: “” 
+fechaHoraEntrada: "", 
+fechaHoraSalida: "", 
+monto: 0 # parametrizado 
+tipoPago: 0 # 1 efectivo, 2 SINPE, 3 tarjeta 
+
+] 
+"""
+app=tk.Tk()
+#Dimensiones: Anchura x Altura 
+app.geometry("900x1100")
+tk.Wm.wm_title(app, "Espacios del Estacionamiento")
+
+"""
+tk.Button(
+    app,
+    text="Espacio 1",
+    font=("Courier",9),
+    bg="#00FF00",
+    fg="red",
+).pack(
+    fill=tk.BOTH,
+    expand=True,
+)
+"""
+
+columnas = 5
+cantidadEspacios = 55
+porcentaje = 0.05
+cantidadMaximaFinal=0
+resultado = math.ceil(cantidadEspacios * porcentaje)
+if resultado==1:
+    resultado=2
+for electricos in range(cantidadEspacios):
+    espacioElectricos=1
+if cantidadEspacios>0:
+    cantidadMaximaFinal=cantidadEspacios-resultado-espacioElectricos
+for i in range(cantidadEspacios):
+    fila = i // columnas      # división entera: 0,0,0,1,1,1,2,2,2...
+    col = i % columnas        # residuo: 0,1,2,0,1,2,0,1,2...
+    boton = tk.Button(app, text=f"Espacio {i+1}", bg="#05c505", fg="black")
+    boton.grid(row=fila, column=col, padx=2, pady=2)
+for i in range(resultado):
+    fila = i // columnas      # división entera: 0,0,0,1,1,1,2,2,2...
+    col = i % columnas     
+       # residuo: 0,1,2,0,1,2,0,1,2...
+    boton = tk.Button(app, text=f"Espacio {i+1}", bg="#d80505", fg="black")
+    boton.grid(row=fila, column=col, padx=2, pady=2)
+    """
+for i in range(espacioElectricos):
+    fila = i // columnas      # división entera: 0,0,0,1,1,1,2,2,2...
+    col = i % columnas     
+       # residuo: 0,1,2,0,1,2,0,1,2...
+    boton = tk.Button(app, text=f"Espacio {i+1}", bg="#d1c6c6", fg="black")
+    boton.grid(row=fila, column=col, padx=2, pady=2)
+    """
+# Ajuste: el espacio eléctrico ahora se dibuja al final de la grilla
+# en vez de en la posición 0 (mismo "app" que el resto de los botones,
+# se le agrega el .grid(...) y se cierra el paréntesis del Button)
+for i in range(cantidadEspacios - espacioElectricos, cantidadEspacios):
+    fila = i // columnas      # división entera: 0,0,0,1,1,1,2,2,2...
+    col = i % columnas        # residuo: 0,1,2,0,1,2,0,1,2...
+    boton = tk.Button(app, text=f"Espacio {i+1}", bg="#d1c6c6", fg="black")
+    boton.grid(row=fila, column=col, padx=2, pady=2)
+app.mainloop()
