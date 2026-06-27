@@ -1,0 +1,211 @@
+import re
+import os
+import random
+import tkinter as tk
+from tkinter import *
+from tkinter import messagebox, simpledialog
+from tkinter import ttk
+import math
+from fpdf import FPDF
+from datetime import datetime
+import qrcode
+
+app = tk.Tk()
+app.geometry("700x400")
+tk.Wm.wm_title(app, "Espacios del Estacionamiento")
+
+app.grid_columnconfigure(0, weight=0)
+app.grid_columnconfigure(1, weight=1)
+app.grid_rowconfigure(0, weight=1)
+
+panelFijo = tk.Frame(app, bg="#2b2b2b", width=150)
+panelFijo.grid(row=0, column=0, sticky="ns")
+panelFijo.grid_propagate(False)
+
+tk.Button(panelFijo, text="Casetilla", bg="#f0a500", fg="black",
+          font=("Courier", 9), width=12, height=3,
+          relief="raised").pack(padx=10, pady=(20, 10))
+
+tk.Button(panelFijo, text="Baño", bg="#0577d8", fg="black",
+          font=("Courier", 9), width=12, height=3,
+          relief="raised").pack(padx=10, pady=10)
+
+contenedor = tk.Frame(app)
+contenedor.grid(row=0, column=1, sticky="nsew")
+
+canvas = tk.Canvas(contenedor, bg="#1e1e2f", highlightthickness=0)
+canvas.pack(side=LEFT, fill=BOTH, expand=True)
+
+scrollbar = tk.Scrollbar(contenedor, orient=VERTICAL, command=canvas.yview)
+scrollbar.pack(side=RIGHT, fill=Y)
+
+canvas.configure(yscrollcommand=scrollbar.set)
+
+frameEspacios = tk.Frame(canvas, bg="#1e1e2f")
+canvas.create_window((0, 0), window=frameEspacios, anchor="nw")
+frameEspacios.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+
+columnas = 5
+cantidadEspacios = 55
+porcentaje = 0.05
+cantidadMaximaFinal = 0
+resultado = math.ceil(cantidadEspacios * porcentaje)
+if resultado == 1:
+    resultado = 2
+for electricos in range(cantidadEspacios):
+    espacioElectricos = 1
+if cantidadEspacios > 0:
+    cantidadMaximaFinal = cantidadEspacios - resultado - espacioElectricos
+
+for i in range(cantidadEspacios):
+    fila = i // columnas
+    col = i % columnas
+    boton = tk.Button(frameEspacios, text=f"Espacio {i+1}", bg="#05c505", fg="black",
+        command=lambda i=i: abrirEspacioVerde(i))
+    boton.grid(row=fila, column=col, padx=70, pady=70)
+
+for i in range(resultado):
+    fila = i // columnas
+    col = i % columnas
+    boton = tk.Button(frameEspacios, text=f"Espacio {i+1}", bg="#d80505", fg="black",
+        command=lambda i=i: abrirEspacioRojo(i))
+    boton.grid(row=fila, column=col, padx=70, pady=70)
+
+for i in range(cantidadEspacios - espacioElectricos, cantidadEspacios):
+    fila = i // columnas
+    col = i % columnas
+    boton = tk.Button(frameEspacios, text=f"Espacio {i+1}", bg="#d1c6c6", fg="black")
+    boton.grid(row=fila, column=col, padx=70, pady=70)
+
+def abrirEspacioRojo(numero):
+    ventanaSecundaria = tk.Toplevel()
+    ventanaSecundaria.title(f"Espacio {numero + 1}")
+    ventanaSecundaria.geometry("500x350")
+    campo = Label(ventanaSecundaria, text="Aqui va el campo : ")
+    campo.place(x=20, y=20)
+    campo.config(font=("Courier", 12))
+    placa = Label(ventanaSecundaria, text="Aqui va la placa : ")
+    placa.place(x=20, y=50)
+    placa.config(font=("Courier", 12))
+    marca = Label(ventanaSecundaria, text="Aqui va la marca : ")
+    marca.place(x=20, y=80)
+    marca.config(font=("Courier", 12))
+    color = Label(ventanaSecundaria, text="Aqui va el color : ")
+    color.place(x=20, y=110)
+    color.config(font=("Courier", 12))
+    horaEntrada = Label(ventanaSecundaria, text="Aqui va la hora de entrada : ")
+    horaEntrada.place(x=20, y=140)
+    horaEntrada.config(font=("Courier", 12))
+
+    tipoPago = tk.StringVar(value="Efectivo")
+    tk.Label(ventanaSecundaria, text="Tipo de pago:").place(x=20, y=180)
+    tk.Radiobutton(ventanaSecundaria, text="Efectivo", variable=tipoPago, value="Efectivo").place(x=20,  y=205)
+    tk.Radiobutton(ventanaSecundaria, text="SINPE",    variable=tipoPago, value="SINPE").place(x=120,    y=205)
+    tk.Radiobutton(ventanaSecundaria, text="Tarjeta",  variable=tipoPago, value="Tarjeta").place(x=220,  y=205)
+
+    def pagar():
+        confirmar = messagebox.askyesno("Confirmar pago", f"¿Confirma el pago con {tipoPago.get()}?")
+        if not confirmar:
+            return 0
+
+        horaSalida = datetime.now()
+
+        datosQr = f"Placa-Marca-Tipo-{horaSalida.strftime('%d-%m-%Y %H:%M')}"
+        imgQr = qrcode.make(datosQr)
+        imgQr.save("qr_temp.png")
+
+        pdf = FPDF(orientation="P", unit="mm", format="A4")
+        pdf.add_page()
+
+        pdf.set_font("Arial", "B", 18)
+        pdf.text(x=20, y=20, txt="Factura de Estacionamiento")
+
+        pdf.set_font("Arial", "", 12)
+        pdf.text(x=70, y=40, txt=f"Campo: aqui va el campo")
+        pdf.text(x=70, y=50, txt=f"Placa: aqui va la placa")
+        pdf.text(x=70, y=60, txt=f"Marca: aqui va la marca")
+        pdf.text(x=70, y=70, txt=f"Color: aqui va el color")
+        pdf.text(x=70, y=80, txt=f"Hora entrada: aqui va la hora")
+        pdf.text(x=70, y=90, txt=f"Hora salida: {horaSalida.strftime('%d-%m-%Y %H:%M')}")
+        pdf.text(x=70, y=100, txt=f"Tipo de pago: {tipoPago.get()}")
+
+        pdf.image("qr_temp.png", x=20, y=110, w=50)
+        nombreArchivo = f"factura_PLACA_{horaSalida.strftime('%d-%m-%Y_%H-%M')}.pdf"
+        pdf.output(nombreArchivo)
+        os.startfile(nombreArchivo)
+
+        messagebox.showinfo("Pago exitoso", f"Pago con {tipoPago.get()} registrado\nFactura: {nombreArchivo}")
+        ventanaSecundaria.destroy()
+
+    ttk.Button(ventanaSecundaria, text="Pagar",    command=pagar).place(x=100, y=270)
+    ttk.Button(ventanaSecundaria, text="Regresar", command=ventanaSecundaria.destroy).place(x=250, y=270)
+
+def abrirEspacioVerde(segundoNumero):
+    ventanaSecundaria = tk.Toplevel()
+    ventanaSecundaria.title(f"Espacio {segundoNumero + 1}")
+    ventanaSecundaria.geometry("500x350")
+    campo = Label(ventanaSecundaria, text="Aqui van los campos disponibles : ")
+    campo.place(x=20, y=20)
+    campo.config(font=("Courier", 12))
+    placa = Label(ventanaSecundaria, text="Aqui va la placa : ")
+    placa.place(x=20, y=50)
+    placa.config(font=("Courier", 12))
+    marca = Label(ventanaSecundaria, text="Aqui va la marca : ")
+    marca.place(x=20, y=80)
+    marca.config(font=("Courier", 12))
+    color = Label(ventanaSecundaria, text="Aqui va el color : ")
+    color.place(x=20, y=110)
+    color.config(font=("Courier", 12))
+    horaEntrada = Label(ventanaSecundaria, text="Aqui va la hora de entrada : ")
+    horaEntrada.place(x=20, y=140)
+    horaEntrada.config(font=("Courier", 12))
+
+    def Estacionar():
+        confirmar = messagebox.askyesno("Confirmar pago", f"¿Confirma el pago con {tipoPago.get()}?")
+        if not confirmar:
+            return 0
+
+        horaEntrada = datetime.now()
+
+        datosQr = f"Placa-Marca-Tipo-{horaEntrada.strftime('%d-%m-%Y %H:%M')}"
+        imgQr2 = qrcode.make(datosQr)
+        imgQr2.save("qr_temp.png")
+
+        pdf = FPDF(orientation="P", unit="mm", format="A4")
+        pdf.add_page()
+
+        pdf.set_font("Arial", "B", 18)
+        pdf.text(x=20, y=20, txt="Factura de Estacionamiento")
+
+        pdf.set_font("Arial", "", 12)
+        pdf.text(x=70, y=40, txt=f"Campo: aqui va el tipo")
+        pdf.text(x=70, y=50, txt=f"Placa: aqui va la placa")
+        pdf.text(x=70, y=60, txt=f"Marca: aqui va la marca")
+        pdf.text(x=70, y=70, txt=f"Color: aqui va el color")
+        pdf.text(x=70, y=80, txt=f"Hora entrada: {horaEntrada.strftime('%d-%m-%Y %H:%M')}")
+        pdf.text(x=70, y=90, txt=f"Hora salida: {horaEntrada.strftime('%d-%m-%Y %H:%M')}")
+        pdf.text(x=70, y=100, txt=f"Tipo de pago: {tipoPago.get()}")
+
+        pdf.image("qr_temp.png", x=20, y=110, w=50)
+        voucher = f"factura_PLACA_{horaEntrada.strftime('%d-%m-%Y_%H-%M')}.pdf"
+        pdf.output(voucher)
+        os.startfile(voucher)
+
+        messagebox.showinfo("Pago exitoso", f"Pago con {tipoPago.get()} registrado\nFactura: {voucher}")
+        ventanaSecundaria.destroy()
+
+    estacionar = ttk.Button(ventanaSecundaria, text="Estacionar", command=Estacionar)
+    estacionar.place(x=100, y=270)
+    botonCerrar = ttk.Button(
+        ventanaSecundaria,
+        text="Regresar",
+        command=ventanaSecundaria.destroy
+    )
+    botonCerrar.place(x=250, y=270)
+
+app.mainloop()
+Fuentes: 
+https://www.geeksforgeeks.org/python/scrollable-frames-in-tkinter/
+https://recursospython.com/guias-y-manuales/ventanas-secundarias-tkinter/
+https://evilnapsis.com/2024/02/18/crear-un-pdf-con-la-libreria-fpdf-en-python/
+https://pypi.org/project/qrcode/
