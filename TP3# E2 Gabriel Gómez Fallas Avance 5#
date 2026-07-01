@@ -1,0 +1,738 @@
+import re
+import os
+import tkinter as tk
+from tkinter import *
+from tkinter import messagebox, simpledialog
+from tkinter import ttk
+import math
+from fpdf import FPDF
+from datetime import datetime
+import qrcode
+import pickle
+
+#Elaborado por: Diego Kim Soto y Gabriel Gomez Fallas.
+#Fecha de creacion 19/Junio/2026 10:42 pm
+#Ultima modificacion: 29/junio/2026 10:00 am
+#Version: 0.0.0
+
+def existeArchivo(nombre_archivo):
+    """
+    Proposito:
+    -Al ingresar el nombre de un archivo, esta funcion retorna True, si el archivo existe,
+    y False si NO existe.
+    Entradas:
+    -nombre_archivo(str): Es el nombre del archivo
+    Salidas:
+    -True(bool): SI existe
+    -False(bool): NO existe
+    """
+    try:
+        with open(nombre_archivo,'rb') as archivo:
+            return True
+    except FileNotFoundError:
+        return False
+
+def guardarArchivo(nombre_archivo, lista):
+    """
+    Proposito:
+    -Guardar la lista de objetos en el archivo binario.
+    Entradas:
+    -nombre_archivo(str): Nombre del archivo
+    -lista(list): Lista a guardar
+    Salidas:
+    -none
+    """
+    with open(nombre_archivo,'wb') as archivo:
+        pickle.dump(lista, archivo)
+
+def cargarArchivo(nombre_archivo):
+    """
+    Proposito:
+    -Retornar el contenido de un archivo binario.
+    Entradas:
+    -nombre_archivo(str): Nombre del archivo
+    Salidas:
+    -list: Lista de objetos
+    """
+    with open(nombre_archivo,'rb') as archivo:
+        return pickle.load(archivo)
+
+
+class Vehiculo:
+    def __init__(self, id, placa, marca, color, tipo_carro, hora_entrada):
+        """
+        Proposito:
+        -Crear un nuevo objeto Vehiculo.
+        Entradas:
+        -id(int): Identificador unico
+        -placa(str): Placa del vehiculo
+        -marca(str): Marca del vehiculo
+        -color(str): Color del vehiculo
+        -tipo_carro(str): Tipo de vehiculo
+        -hora_entrada(datetime): Fecha y hora de ingreso
+        Salidas:
+        -none
+        """
+        self.id = id
+        self.placa = placa
+        self.marca = marca
+        self.color = color
+        self.tipo_carro = tipo_carro
+        self.hora_entrada = hora_entrada
+        self.hora_salida = None
+        self.tipo_pago = None
+        self.monto = 0
+        self.espacio_asignado = -1
+
+
+class Espacio:
+    def __init__(self, numero, tipo):
+        """
+        Proposito:
+        -Crear un nuevo espacio de estacionamiento.
+        Entradas:
+        -numero(int): Numero identificador
+        -tipo(str): Tipo de espacio
+        Salidas:
+        -none
+        """
+        self.numero = numero
+        self.tipo = tipo
+        self.ocupado = False
+        self.vehiculo = None
+
+    def estacionar(self, vehiculo):
+        """
+        Proposito:
+        -Asignar un vehiculo a un espacio libre.
+        Entradas:
+        -vehiculo(Vehiculo): Objeto vehiculo
+        Salidas:
+        -True(bool): Estacionado correctamente
+        -False(bool): Espacio ocupado
+        """
+        if not self.ocupado:
+            self.ocupado = True
+            self.vehiculo = vehiculo
+            vehiculo.espacio_asignado = self.numero
+            return True
+        return False
+
+    def liberar(self):
+        """
+        Proposito:
+        -Liberar un espacio ocupado.
+        Entradas:
+        -none
+        Salidas:
+        -True(bool): Espacio liberado
+        """
+        self.ocupado = False
+        self.vehiculo = None
+        return True
+
+
+class Estacionamiento:
+    """
+    Proposito:
+    -Representa el estacionamiento completo con sus espacios y configuracion.
+    """
+    def __init__(self):
+        """
+        Proposito:
+        -Crear un nuevo estacionamiento sin espacios.
+        Entradas:
+        -none
+        Salidas:
+        -none
+        """
+        self.espacios = []
+        self.configuracion = {
+            "total_espacios": 0,
+            "espacios_especiales": 0,
+            "tiempo_gracia": 15,
+            "monto_por_hora": 1000,
+            "tiene_electrico": False
+        }
+
+    def configurar(self, total, tiempo_gracia, monto_por_hora, tiene_electrico):
+        """
+        Proposito:
+        -Configurar el estacionamiento y generar todos los espacios.
+        Entradas:
+        -total(int): Total de espacios
+        -tiempo_gracia(int): Minutos de gracia
+        -monto_por_hora(int): Monto en colones por hora
+        -tiene_electrico(bool): Si tiene espacio electrico
+        Salidas:
+        -none
+        """
+        especiales = max(2, int(total * 0.05))
+        self.configuracion["total_espacios"] = total
+        self.configuracion["espacios_especiales"] = especiales
+        self.configuracion["tiempo_gracia"] = tiempo_gracia
+        self.configuracion["monto_por_hora"] = monto_por_hora
+        self.configuracion["tiene_electrico"] = tiene_electrico
+        self.espacios = []
+        generales = total - especiales - (1 if tiene_electrico else 0)
+        for i in range(generales):
+            self.espacios.append(Espacio(i, "general"))
+        for i in range(especiales):
+            self.espacios.append(Espacio(len(self.espacios), "especial"))
+        if tiene_electrico:
+            self.espacios.append(Espacio(len(self.espacios), "electrico"))
+
+    def buscar_espacio_libre(self, tipo_vehiculo):
+        """
+        Proposito:
+        -Encontrar un espacio libre segun el tipo de vehiculo.
+        Entradas:
+        -tipo_vehiculo(str): Tipo de vehiculo
+        Salidas:
+        -Espacio(object): Espacio libre compatible
+        -None: Sin espacio disponible
+        """
+        for espacio in self.espacios:
+            if not espacio.ocupado:
+                if tipo_vehiculo == "general":
+                    if espacio.tipo != "electrico":
+                        return espacio
+                elif tipo_vehiculo == "especial":
+                    if espacio.tipo == "especial":
+                        return espacio
+                elif tipo_vehiculo == "electrico":
+                    if espacio.tipo == "electrico":
+                        return espacio
+        return None
+
+    def obtener_resumen(self):
+        """
+        Proposito:
+        -Obtener un resumen del estado actual del estacionamiento.
+        Entradas:
+        -none
+        Salidas:
+        -resumen(dict): Diccionario con totales
+        """
+        resumen = {
+            "total": len(self.espacios),
+            "ocupados": 0,
+            "generales": 0,
+            "especiales": 0,
+            "electricos": 0,
+            "generales_ocupados": 0,
+            "especiales_ocupados": 0,
+            "electricos_ocupados": 0
+        }
+        for espacio in self.espacios:
+            if espacio.tipo == "general":
+                resumen["generales"] += 1
+                if espacio.ocupado:
+                    resumen["generales_ocupados"] += 1
+            elif espacio.tipo == "especial":
+                resumen["especiales"] += 1
+                if espacio.ocupado:
+                    resumen["especiales_ocupados"] += 1
+            else:
+                resumen["electricos"] += 1
+                if espacio.ocupado:
+                    resumen["electricos_ocupados"] += 1
+            if espacio.ocupado:
+                resumen["ocupados"] += 1
+        return resumen
+
+
+class GestorEstacionamiento:
+    """
+    Proposito:
+    -Maneja toda la logica del estacionamiento.
+    """
+    def __init__(self):
+        """
+        Proposito:
+        -Crear el gestor principal.
+        Entradas:
+        -none
+        Salidas:
+        -none
+        """
+        self.estacionamiento = Estacionamiento()
+        self.vehiculos = []
+        self.facturas_dia = []
+        self.proximo_id = 1
+
+    def configurar(self, total, gracia, monto, tiene_electrico):
+        """
+        Proposito:
+        -Configurar el estacionamiento a traves del gestor.
+        Entradas:
+        -total(int): Total de espacios
+        -gracia(int): Minutos de gracia
+        -monto(int): Monto por hora
+        -tiene_electrico(bool): Si tiene electrico
+        Salidas:
+        -none
+        """
+        self.estacionamiento.configurar(total, gracia, monto, tiene_electrico)
+
+    def estacionar_vehiculo(self, placa, marca, color, tipo_carro):
+        """
+        Proposito:
+        -Registrar la entrada de un nuevo vehiculo.
+        Entradas:
+        -placa(str): Placa
+        -marca(str): Marca
+        -color(str): Color
+        -tipo_carro(str): Tipo de vehiculo
+        Salidas:
+        -True/False(bool), mensaje(str), espacio(Espacio)
+        """
+        espacio = self.estacionamiento.buscar_espacio_libre(tipo_carro)
+        if espacio is None:
+            return False, "No hay espacio disponible para este tipo", None
+        vehiculo = Vehiculo(
+            id=self.proximo_id,
+            placa=placa,
+            marca=marca,
+            color=color,
+            tipo_carro=tipo_carro,
+            hora_entrada=datetime.now()
+        )
+        espacio.estacionar(vehiculo)
+        self.vehiculos.append(vehiculo)
+        self.proximo_id += 1
+        return True, "Vehiculo estacionado", espacio
+
+    def pagar_vehiculo(self, numero_espacio, tipo_pago):
+        """
+        Proposito:
+        -Procesar el pago y liberar el espacio.
+        Entradas:
+        -numero_espacio(int): Numero del espacio
+        -tipo_pago(str): Metodo de pago
+        Salidas:
+        -True/False(bool), mensaje(str), vehiculo(Vehiculo)
+        """
+        for espacio in self.estacionamiento.espacios:
+            if espacio.numero == numero_espacio and espacio.ocupado:
+                vehiculo = espacio.vehiculo
+                hora_salida = datetime.now()
+                vehiculo.hora_salida = hora_salida
+                vehiculo.tipo_pago = tipo_pago
+                vehiculo.monto = self.calcular_monto(vehiculo.hora_entrada, hora_salida)
+                self.facturas_dia.append(vehiculo)
+                espacio.liberar()
+                return True, "Pago procesado", vehiculo
+        return False, "No hay vehiculo en este espacio", None
+
+    def calcular_monto(self, hora_entrada, hora_salida):
+        """
+        Proposito:
+        -Calcular el monto a pagar segun el tiempo de estadia.
+        Entradas:
+        -hora_entrada(datetime): Hora de ingreso
+        -hora_salida(datetime): Hora de salida
+        Salidas:
+        -monto(int): Monto en colones
+        """
+        diferencia = hora_salida - hora_entrada
+        minutos = diferencia.total_seconds() / 60
+        gracia = self.estacionamiento.configuracion["tiempo_gracia"]
+        tarifa = self.estacionamiento.configuracion["monto_por_hora"]
+        if minutos <= gracia:
+            return 0
+        minutos_cobrables = minutos - gracia
+        horas = int(minutos_cobrables / 60)
+        if minutos_cobrables % 60 > 0:
+            horas += 1
+        return horas * tarifa
+
+
+class Ventana_principal:
+    def __init__(self, raiz):
+        """
+        Proposito:
+        -Inicializar la ventana principal del sistema.
+        Entradas:
+        -raiz(tk.Tk): Objeto raiz de tkinter
+        Salidas:
+        -none
+        """
+        self.raiz = raiz
+        self.raiz.title("Sistema de estacionamiento")
+        self.raiz.geometry("500x500")
+        self.raiz.configure(bg="#919191")
+        self.listaBotones = []
+        if existeArchivo("estacionamiento.bin"):
+            self.gestor = cargarArchivo("estacionamiento.bin")
+        else:
+            self.gestor = GestorEstacionamiento()
+        self.mostrar_configuracion_inicial()
+
+    def menu_principal(self):
+        """
+        Proposito:
+        -Construir el menu principal con los 5 botones de opciones.
+        Entradas:
+        -none
+        Salidas:
+        -none
+        """
+        marco_botones = tk.Frame(self.raiz, bg="#919191")
+        marco_botones.pack(expand=True, fill="both", padx=40, pady=40)
+        titulo = tk.Label(
+            marco_botones,
+            text="Menu principal",
+            font=("Arial", "18"),
+            bg="#919191",
+            fg="#FFFFFF"
+        )
+        titulo.pack(pady=20)
+        btn1 = tk.Button(marco_botones, text="Obtener Vehiculos", command=self.opcion1,
+            font=("Arial", 12), bg="#8b8b8b", fg="white", padx=20, pady=10,
+            relief="raised", bd=2, cursor="hand2", width=30)
+        btn2 = tk.Button(marco_botones, text="Ver Estacionamiento", command=self.opcion2,
+            font=("Arial", 12), bg="#8b8b8b", fg="white", padx=20, pady=10,
+            relief="raised", bd=2, cursor="hand2", width=30)
+        btn3 = tk.Button(marco_botones, text="Reportes", command=self.opcion3,
+            font=("Arial", 12), bg="#8b8b8b", fg="white", padx=20, pady=10,
+            relief="raised", bd=2, cursor="hand2", width=30)
+        btn4 = tk.Button(marco_botones, text="Configuracion", command=self.opcion4,
+            font=("Arial", 12), bg="#8b8b8b", fg="white", padx=20, pady=10,
+            relief="raised", bd=2, cursor="hand2", width=30)
+        btn5 = tk.Button(marco_botones, text="Acerca de", command=self.opcion5,
+            font=("Arial", 12), bg="#8b8b8b", fg="white", padx=20, pady=10,
+            relief="raised", bd=2, cursor="hand2", width=30)
+        btn1.pack(pady=8)
+        btn2.pack(pady=8)
+        btn3.pack(pady=8)
+        btn4.pack(pady=8)
+        btn5.pack(pady=8)
+
+    def mostrar_configuracion_inicial(self):
+        """
+        Proposito:
+        -Mostrar ventana de configuracion al iniciar el programa.
+        Entradas:
+        -none
+        Salidas:
+        -none
+        """
+        ventana = tk.Toplevel(self.raiz)
+        ventana.title("Configuracion del Estacionamiento")
+        ventana.geometry("400x450")
+        ventana.configure(bg="#f0f0f0")
+        ventana.resizable(False, False)
+        ventana.update_idletasks()
+        x = (ventana.winfo_screenwidth() // 2) - (400 // 2)
+        y = (ventana.winfo_screenheight() // 2) - (450 // 2)
+        ventana.geometry(f"+{x}+{y}")
+        ventana.transient(self.raiz)
+        ventana.grab_set()
+
+        configActual = self.gestor.estacionamiento.configuracion
+        valorEspacios = str(configActual["total_espacios"]) if configActual["total_espacios"] > 0 else ""
+        valorGracia = str(configActual["tiempo_gracia"])
+        valorMonto = str(configActual["monto_por_hora"])
+        valorElectrico = configActual["tiene_electrico"]
+
+        var_espacios = tk.StringVar(value=valorEspacios)
+        var_gracia = tk.StringVar(value=valorGracia)
+        var_monto = tk.StringVar(value=valorMonto)
+        var_electrico = tk.BooleanVar(value=valorElectrico)
+
+        if configActual["total_espacios"] > 0:
+            textoTitulo = "Configuracion actual del Estacionamiento"
+            textoSubtitulo = "Puede modificar los valores y guardar."
+        else:
+            textoTitulo = "Configuracion del Estacionamiento"
+            textoSubtitulo = "No se encontro una base de datos.\nIngrese los datos de configuracion:"
+
+        tk.Label(ventana, text=textoTitulo,
+            font=("Arial", 14, "bold"), bg="#f0f0f0").pack(pady=15)
+        tk.Label(ventana, text=textoSubtitulo,
+            font=("Arial", 11), bg="#f0f0f0").pack(pady=5)
+
+        frame = tk.Frame(ventana, bg="#f0f0f0")
+        frame.pack(pady=20, padx=40)
+
+        tk.Label(frame, text="Total de espacios:", bg="#f0f0f0", font=("Arial", 11)).grid(row=0, column=0, sticky="w", pady=8)
+        tk.Entry(frame, textvariable=var_espacios, font=("Arial", 12), width=12, justify="center").grid(row=0, column=1, pady=8, padx=10)
+
+        tk.Label(frame, text="Tiempo de gracia (min):", bg="#f0f0f0", font=("Arial", 11)).grid(row=1, column=0, sticky="w", pady=8)
+        tk.Entry(frame, textvariable=var_gracia, font=("Arial", 12), width=12, justify="center").grid(row=1, column=1, pady=8, padx=10)
+
+        tk.Label(frame, text="Monto por hora (₡):", bg="#f0f0f0", font=("Arial", 11)).grid(row=2, column=0, sticky="w", pady=8)
+        tk.Entry(frame, textvariable=var_monto, font=("Arial", 12), width=12, justify="center").grid(row=2, column=1, pady=8, padx=10)
+
+        tk.Checkbutton(frame, text="Tiene espacio para vehiculos electricos",
+            variable=var_electrico, bg="#f0f0f0", font=("Arial", 11)).grid(row=3, column=0, columnspan=2, sticky="w", pady=15)
+
+        frame_botones = tk.Frame(ventana, bg="#f0f0f0")
+        frame_botones.pack(pady=10)
+
+        def guardar_configuracion():
+            try:
+                total = int(var_espacios.get().strip())
+                if total < 2:
+                    messagebox.showerror("Error", "El estacionamiento debe tener al menos 2 espacios.")
+                    return
+            except ValueError:
+                messagebox.showerror("Error", "Ingrese un numero valido para los espacios.")
+                return
+            try:
+                gracia = int(var_gracia.get().strip())
+                if gracia < 0:
+                    messagebox.showerror("Error", "La gracia no puede ser negativa.")
+                    return
+            except ValueError:
+                messagebox.showerror("Error", "Ingrese un numero valido para la gracia.")
+                return
+            try:
+                monto = int(var_monto.get().strip())
+                if monto <= 0:
+                    messagebox.showerror("Error", "El monto debe ser mayor a 0.")
+                    return
+            except ValueError:
+                messagebox.showerror("Error", "Ingrese un numero valido para el monto.")
+                return
+
+            confirmar = messagebox.askyesno("Confirmar", "¿Desea guardar esta configuracion?")
+            if not confirmar:
+                return
+
+            self.gestor.configurar(total, gracia, monto, var_electrico.get())
+            guardarArchivo("estacionamiento.bin", self.gestor)
+            ventana.destroy()
+            self.menu_principal()
+
+        def continuar_sin_cambios():
+            ventana.destroy()
+            self.menu_principal()
+
+        def on_closing():
+            if configActual["total_espacios"] > 0:
+                ventana.destroy()
+                self.menu_principal()
+            else:
+                if messagebox.askyesno("Configuracion incompleta",
+                    "No ha ingresado datos de configuracion.\n\n"
+                    "¿Desea usar datos base? (20 espacios, 15 min gracia, 1000 colones)\n"
+                    "Si selecciona 'No', el programa se cerrara."):
+                    self.gestor.configurar(20, 15, 1000, False)
+                    guardarArchivo("estacionamiento.bin", self.gestor)
+                    ventana.destroy()
+                    self.menu_principal()
+                else:
+                    self.raiz.destroy()
+
+        ventana.protocol("WM_DELETE_WINDOW", on_closing)
+
+        tk.Button(frame_botones, text="Guardar Configuracion", command=guardar_configuracion,
+            font=("Arial", 12), bg="#27ae60", fg="white", padx=20, pady=8, cursor="hand2").pack(pady=5)
+
+        if configActual["total_espacios"] > 0:
+            tk.Button(frame_botones, text="Continuar sin cambios", command=continuar_sin_cambios,
+                font=("Arial", 12), bg="#3498db", fg="white", padx=20, pady=8, cursor="hand2").pack(pady=5)
+        else:
+            tk.Button(frame_botones, text="Usar datos base", command=lambda: [
+                self.gestor.configurar(20, 15, 1000, False),
+                guardarArchivo("estacionamiento.bin", self.gestor),
+                ventana.destroy(),
+                self.menu_principal()
+            ], font=("Arial", 12), bg="#3498db", fg="white", padx=20, pady=8, cursor="hand2").pack(pady=5)
+
+    def opcion1(self):
+        print("1")
+
+    def opcion2(self):
+        """
+        Proposito:
+        -Abrir la ventana de visualizacion del estacionamiento.
+        Entradas:
+        -none
+        Salidas:
+        -none
+        """
+        ventanaEspacios = tk.Toplevel(self.raiz)
+        ventanaEspacios.geometry("700x400")
+        ventanaEspacios.title("Espacios del Estacionamiento")
+
+        ventanaEspacios.grid_columnconfigure(0, weight=0)
+        ventanaEspacios.grid_columnconfigure(1, weight=1)
+        ventanaEspacios.grid_rowconfigure(0, weight=1)
+
+        panelFijo = tk.Frame(ventanaEspacios, bg="#2b2b2b", width=150)
+        panelFijo.grid(row=0, column=0, sticky="ns")
+        panelFijo.grid_propagate(False)
+
+        tk.Button(panelFijo, text="Casetilla", bg="#f0a500", fg="black",
+                  font=("Courier", 9), width=12, height=3,
+                  relief="raised").pack(padx=10, pady=(20, 10))
+
+        tk.Button(panelFijo, text="Baño", bg="#0577d8", fg="black",
+                  font=("Courier", 9), width=12, height=3,
+                  relief="raised").pack(padx=10, pady=10)
+
+        contenedor = tk.Frame(ventanaEspacios)
+        contenedor.grid(row=0, column=1, sticky="nsew")
+
+        canvas = tk.Canvas(contenedor, bg="#1e1e2f", highlightthickness=0)
+        canvas.pack(side=LEFT, fill=BOTH, expand=True)
+
+        scrollbar = tk.Scrollbar(contenedor, orient=VERTICAL, command=canvas.yview)
+        scrollbar.pack(side=RIGHT, fill=Y)
+
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        frameEspacios = tk.Frame(canvas, bg="#1e1e2f")
+        canvas.create_window((0, 0), window=frameEspacios, anchor="nw")
+        frameEspacios.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+
+        columnas = 5
+        cantidadEspacios = self.gestor.estacionamiento.configuracion["total_espacios"]
+        porcentaje = 0.05
+        cantidadMaximaFinal = 0
+        resultado = math.ceil(cantidadEspacios * porcentaje)
+        if resultado == 1:
+            resultado = 2
+        for electricos in range(cantidadEspacios):
+            espacioElectricos = 1
+        if cantidadEspacios > 0:
+            cantidadMaximaFinal = cantidadEspacios - resultado - espacioElectricos
+
+        self.listaBotones = []
+
+        # Espacios verdes (generales libres)
+        for i in range(cantidadEspacios):
+            fila = i // columnas
+            col = i % columnas
+            boton = tk.Button(frameEspacios, text=f"Espacio {i+1}", bg="#05c505", fg="black",
+                command=lambda i=i: self.abrirEspacioVerde(i))
+            boton.grid(row=fila, column=col, padx=70, pady=70)
+            self.listaBotones.append(boton)
+        for i in range(resultado):
+            fila = i // columnas
+            col = i % columnas
+            boton = tk.Button(frameEspacios, text=f"Espacio {i+1}", bg="#0577d8", fg="white",
+                command=lambda i=i: self.abrirEspacioVerde(i))
+            boton.grid(row=fila, column=col, padx=70, pady=70)
+            self.listaBotones[i] = boton
+      
+        for i in range(cantidadEspacios - espacioElectricos, cantidadEspacios):
+            fila = i // columnas
+            col = i % columnas
+            boton = tk.Button(frameEspacios, text=f"Espacio {i+1}", bg="#d1c6c6", fg="black")
+            boton.grid(row=fila, column=col, padx=70, pady=70)
+            self.listaBotones[i] = boton
+
+    def abrirEspacioRojo(self, numero):
+        """
+        Proposito:
+        -Abrir ventana de observacion para cualquier espacio ocupado (rojo).
+        -Funciona para espacios generales y especiales ocupados.
+        Entradas:
+        -numero(int): Numero del espacio presionado
+        Salidas:
+        -none
+        """
+        ventanaSecundaria = tk.Toplevel()
+        ventanaSecundaria.title(f"Espacio {numero + 1}")
+        ventanaSecundaria.geometry("500x350")
+        vehiculoEnEspacio = None
+        for esp in self.gestor.estacionamiento.espacios:
+            if esp.numero == numero and esp.ocupado:
+                vehiculoEnEspacio = esp.vehiculo
+                break
+
+        campoTexto = f"Espacio {numero + 1}"
+        placaTexto = vehiculoEnEspacio.placa if vehiculoEnEspacio else "Sin datos"
+        marcaTexto = vehiculoEnEspacio.marca if vehiculoEnEspacio else "Sin datos"
+        colorTexto = vehiculoEnEspacio.color if vehiculoEnEspacio else "Sin datos"
+        horaTexto  = vehiculoEnEspacio.hora_entrada.strftime('%d-%m-%Y %H:%M') if vehiculoEnEspacio else "Sin datos"
+      
+
+        campo = Label(ventanaSecundaria, text=f"Campo: {campoTexto}")
+        campo.place(x=20, y=20)
+        campo.config(font=("Courier", 12))
+        placa = Label(ventanaSecundaria, text=f"Placa: {placaTexto}")
+        placa.place(x=20, y=50)
+        placa.config(font=("Courier", 12))
+        marca = Label(ventanaSecundaria, text=f"Marca: {marcaTexto}")
+        marca.place(x=20, y=80)
+        marca.config(font=("Courier", 12))
+        color = Label(ventanaSecundaria, text=f"Color: {colorTexto}")
+        color.place(x=20, y=110)
+        color.config(font=("Courier", 12))
+        horaEntrada = Label(ventanaSecundaria, text=f"Hora entrada: {horaTexto}")
+        horaEntrada.place(x=20, y=140)
+        horaEntrada.config(font=("Courier", 12))
+
+        tipoPago = tk.StringVar(value="Efectivo")
+        tk.Label(ventanaSecundaria, text="Tipo de pago:").place(x=20, y=180)
+        tk.Radiobutton(ventanaSecundaria, text="Efectivo", variable=tipoPago, value="Efectivo").place(x=20,  y=205)
+        tk.Radiobutton(ventanaSecundaria, text="SINPE",    variable=tipoPago, value="SINPE").place(x=120,    y=205)
+        tk.Radiobutton(ventanaSecundaria, text="Tarjeta",  variable=tipoPago, value="Tarjeta").place(x=220,  y=205)
+
+        def pagar():
+            confirmar = messagebox.askyesno("Confirmar pago", f"¿Confirma el pago con {tipoPago.get()}?")
+            if not confirmar:
+                return 0
+            horaSalida = datetime.now()
+
+            placaReal = vehiculoEnEspacio.placa if vehiculoEnEspacio else "PLACA"
+            marcaReal = vehiculoEnEspacio.marca if vehiculoEnEspacio else "MARCA"
+            tipoReal  = vehiculoEnEspacio.tipo_carro if vehiculoEnEspacio else "TIPO"
+            horaEntradaReal = vehiculoEnEspacio.hora_entrada.strftime('%d-%m-%Y %H:%M') if vehiculoEnEspacio else ""
+        
+
+            datosQr = f"{placaReal}-{marcaReal}-{tipoReal}-{horaEntradaReal}"
+            imgQr = qrcode.make(datosQr)
+            imgQr.save("qr_temp.png")
+
+            pdf = FPDF(orientation="P", unit="mm", format="A4")
+            pdf.add_page()
+            pdf.set_font("Arial", "B", 18)
+            pdf.text(x=20, y=20, txt="Factura de Estacionamiento")
+            pdf.set_font("Arial", "", 12)
+            pdf.text(x=70, y=40, txt=f"Espacio: {numero + 1}")
+            pdf.text(x=70, y=50, txt=f"Placa: {placaReal}")
+            pdf.text(x=70, y=60, txt=f"Marca: {marcaReal}")
+            pdf.text(x=70, y=70, txt=f"Color: {colorTexto}")
+            pdf.text(x=70, y=80, txt=f"Hora entrada: {horaEntradaReal}")
+            pdf.text(x=70, y=90, txt=f"Hora salida: {horaSalida.strftime('%d-%m-%Y %H:%M')}")
+            pdf.text(x=70, y=100, txt=f"Tipo de pago: {tipoPago.get()}")
+            pdf.image("qr_temp.png", x=20, y=110, w=50)
+            nombreArchivo = f"factura_{placaReal}_{horaSalida.strftime('%d-%m-%Y_%H-%M')}.pdf"
+            pdf.output(nombreArchivo)
+            os.startfile(nombreArchivo)
+            self.gestor.pagar_vehiculo(numero, tipoPago.get())
+            guardarArchivo("estacionamiento.bin", self.gestor)
+          
+            self.listaBotones[numero].config(
+                bg="#05c505",
+                fg="black",
+                command=lambda n=numero: self.abrirEspacioVerde(n)
+            )
+       
+
+            messagebox.showinfo("Pago exitoso", f"Pago con {tipoPago.get()} registrado\nFactura: {nombreArchivo}")
+            ventanaSecundaria.destroy()
+
+        ttk.Button(ventanaSecundaria, text="Pagar",    command=pagar).place(x=100, y=270)
+        ttk.Button(ventanaSecundaria, text="Regresar", command=ventanaSecundaria.destroy).place(x=250, y=270)
+        def opcion3(self):
+        print("3")
+
+    def opcion4(self):
+        print("4")
+
+    def opcion5(self):
+        print("5")
+
+
+if __name__ == "__main__":
+    raiz = tk.Tk()
+    activacion = Ventana_principal(raiz)
+    raiz.mainloop()
+        
