@@ -1,4 +1,4 @@
-     -----SCRUM-----
+     -----SCRUM-----.
 ---Fecha inicial 12/junio/2025
 ---Grupo de Trabajo: Diego Kim Soto y Gabriel Gomez Fallas.
 ---SCRUM MASTER: Diego kim Soto.
@@ -39,7 +39,16 @@
  (Ver estacionamiento(interfaz grafica))
 -?En que ocupo ayuda?: Por el momento nada.
 -----_____-----_____-----_____-----_____-----_____-----_____
-
+-Fecha:30/junio/2026
+-Nombre de la perzona: Diego kim soto
+-?Que he hecho?:Dentro de mi aporte:(TP3# E1 Diego Kim Soto Avance 1# Ventana inicial de botones).
+ Cree el menu principal, que se supone que abre a las otr ventanas.
+ Cree la base de datos, en el sentido de lo que lo maneja y revisa que este, 
+ pregunta usuario por cnfiguracion sino construye base de datos con datos defult.
+ Cree funciones para el manejo de las otras ventanas, como las funciones para manipular
+ los daatos de los espacios, en sentido para parquear y facturar, y obtener los reportes.
+-?Que hare a continuacion?:Nada. ya hise lo que pude, tenga uns buenas vacaciones de medio anno.
+-?En que ocupo ayuda?:Nada, solo que tenga un buen dia, :) todo va a estar 
 -----_____-----_____-----_____-----_____-----_____-----_____
 !!!Pon estas lineas entre cada entrada, para diferenciar los dias entre si!!!
 -----_____-----_____-----_____-----_____-----_____-----_____
